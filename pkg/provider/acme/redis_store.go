@@ -11,12 +11,12 @@ var _ Store = (*RedisStore)(nil)
 
 // RedisStore Stores implementation redis database.
 type RedisStore struct {
-	url string
+	Addr string
 }
 
 // NewRedisStore initializes a new RedisStore with an URL.
-func NewRedisStore(url string) *RedisStore {
-	store := &RedisStore{url: url}
+func NewRedisStore(Addr string) *RedisStore {
+	store := &RedisStore{Addr: Addr}
 
 	return store
 }
