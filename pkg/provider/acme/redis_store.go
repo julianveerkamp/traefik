@@ -1,31 +1,38 @@
 package acme
 
-// import (
-//
-//	"context"
-//	"github.com/go-redis/redis/v8"
-//
-// )
+import (
+	"context"
+	"github.com/go-redis/redis/v8"
+)
 
 var _ Store = (*RedisStore)(nil)
 
 // RedisStore Stores implementation redis database.
 type RedisStore struct {
-	Addr string
+	ctx    context.Context
+	client *redis.Client
 }
 
 // NewRedisStore initializes a new RedisStore with an URL.
 func NewRedisStore(Addr string) *RedisStore {
-	store := &RedisStore{Addr: Addr}
+	ctx := context.Background()
+	client := redis.NewClient(&redis.Options{
+		Addr: Addr,
+	})
+	store := &RedisStore{ctx: ctx, client: client}
 
 	return store
 }
 
 // GetAccount returns ACME Account.
 func (s *RedisStore) GetAccount(resolverName string) (*Account, error) {
-	panic("TODO")
+	var account Account
 
-	return nil, nil
+	if err := s.client.HGetAll(s.ctx, resolverName).Scan(&account); err != nil {
+		return nil, err
+	}
+
+	return &account, nil
 }
 
 // SaveAccount stores ACME Account.

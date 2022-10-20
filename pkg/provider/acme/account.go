@@ -14,7 +14,7 @@ import (
 
 // Account is used to store lets encrypt registration info.
 type Account struct {
-	Email        string
+	Email        string `redis:"email"`
 	Registration *registration.Resource
 	PrivateKey   []byte
 	KeyType      certcrypto.KeyType

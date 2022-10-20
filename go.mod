@@ -7,6 +7,7 @@ require (
 	github.com/ExpediaDotCom/haystack-client-go v0.0.0-20190315171017-e7edbdf53a61
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/abbot/go-http-auth v0.0.0-00010101000000-000000000000
+	github.com/alicebob/miniredis/v2 v2.23.0
 	github.com/aws/aws-sdk-go v1.44.47
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/compose-spec/compose-go v1.0.3
@@ -22,6 +23,7 @@ require (
 	github.com/go-acme/lego/v4 v4.9.0
 	github.com/go-check/check v0.0.0-00010101000000-000000000000
 	github.com/go-kit/kit v0.10.1-0.20200915143503-439c4d2ed3ea
+	github.com/go-redis/redis/v8 v8.11.5
 	github.com/golang/protobuf v1.5.2
 	github.com/google/go-github/v28 v28.1.1
 	github.com/gorilla/mux v1.8.0
@@ -47,6 +49,7 @@ require (
 	github.com/mitchellh/copystructure v1.0.0
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.5.0
+	github.com/nitishm/go-rejson/v4 v4.1.0
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/openzipkin-contrib/zipkin-go-opentracing v0.4.5
 	github.com/openzipkin/zipkin-go v0.2.2
@@ -119,6 +122,7 @@ require (
 	github.com/VividCortex/gohistogram v1.0.0 // indirect
 	github.com/agl/ed25519 v0.0.0-20170116200512-5312a6153412 // indirect
 	github.com/akamai/AkamaiOPEN-edgegrid-golang v1.2.1 // indirect
+	github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a // indirect
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1755 // indirect
 	github.com/andres-erbsen/clock v0.0.0-20160526145045-9e14626cd129 // indirect
 	github.com/armon/go-metrics v0.3.10 // indirect
@@ -167,7 +171,6 @@ require (
 	github.com/go-errors/errors v1.0.1 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v0.4.0 // indirect
-	github.com/go-redis/redis/v8 v8.11.5 // indirect
 	github.com/go-resty/resty/v2 v2.1.1-0.20191201195748-d7b97669fe48 // indirect
 	github.com/go-task/slim-sprig v0.0.0-20210107165309-348f09dbbbc0 // indirect
 	github.com/go-zookeeper/zk v1.0.3 // indirect
@@ -312,6 +315,7 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	github.com/yandex-cloud/go-genproto v0.0.0-20220805142335-27b56ddae16f // indirect
 	github.com/yandex-cloud/go-sdk v0.0.0-20220805164847-cf028e604997 // indirect
+	github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9 // indirect
 	github.com/zeebo/errs v1.2.2 // indirect
 	go.elastic.co/apm/module/apmhttp v1.13.1 // indirect
 	go.elastic.co/fastjson v1.1.0 // indirect
