@@ -53,7 +53,10 @@ func (s *RedisStore) GetAccount(resolverName string) (*Account, error) {
 
 // SaveAccount stores ACME Account.
 func (s *RedisStore) SaveAccount(resolverName string, account *Account) error {
-	panic("TODO")
+	_, err := s.rh.JSONSet(resolverName, ".", account)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

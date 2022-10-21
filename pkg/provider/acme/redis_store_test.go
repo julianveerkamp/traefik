@@ -1,6 +1,7 @@
 package acme
 
 import (
+	"encoding/json"
 	"github.com/go-redis/redis/v8"
 	"github.com/nitishm/go-rejson/v4"
 	"github.com/stretchr/testify/assert"
@@ -33,28 +34,30 @@ func TestRedisStore_GetAccount(t *testing.T) {
 }
 
 func TestRedisStore_SaveAccount(t *testing.T) {
-	redisURL := "TODO: URL"
+	addr := "localhost:6379"
 
-	s := NewRedisStore(redisURL)
+	s := NewRedisStore(addr)
 
-	email := "some@email.com"
+	account := Account{
+		Email: "some42@email.com",
+	}
 
-	err := s.SaveAccount("test", &Account{Email: email})
+	err := s.SaveAccount("test", &account)
 	require.NoError(t, err)
 
 	time.Sleep(100 * time.Millisecond)
 
-	_ = `{
-  "test": {
-    "Account": {
-      "Email": "some@email.com",
-      "Registration": null,
-      "PrivateKey": null,
-      "KeyType": ""
-    },
-    "Certificates": null
-  }
-}`
-	// Assert that  redis correctly save the account
-	// assert.Equal(t, expected, string(file))
+	rh := rejson.NewReJSONHandler()
+	rdb := redis.NewClient(&redis.Options{
+		Addr: addr,
+	})
+	rh.SetGoRedisClient(rdb)
+
+	res, act_err := rh.JSONGet("test", ".")
+	require.NoError(t, act_err)
+
+	var actual Account
+	json.Unmarshal(res.([]byte), &actual)
+
+	assert.Equal(t, account, actual)
 }
