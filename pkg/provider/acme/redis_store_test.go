@@ -1,9 +1,8 @@
 package acme
 
 import (
-	"context"
-	"github.com/alicebob/miniredis/v2"
 	"github.com/go-redis/redis/v8"
+	"github.com/nitishm/go-rejson/v4"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -11,25 +10,21 @@ import (
 )
 
 func TestRedisStore_GetAccount(t *testing.T) {
-	server := miniredis.RunT(t)
+	addr := "localhost:6379"
+	rh := rejson.NewReJSONHandler()
 	rdb := redis.NewClient(&redis.Options{
-		Addr: server.Addr(),
+		Addr: addr,
 	})
-
-	ctx := context.Background()
+	rh.SetGoRedisClient(rdb)
 
 	account := Account{
 		Email: "some42@email.com",
 	}
 
-	if _, err := rdb.Pipelined(ctx, func(rdb redis.Pipeliner) error {
-		rdb.HSet(ctx, "test", "email", account.Email)
-		return nil
-	}); err != nil {
-		panic(err)
-	}
+	_, exp_err := rh.JSONSet("test", ".", account)
+	require.NoError(t, exp_err)
 
-	s := NewRedisStore(server.Addr())
+	s := NewRedisStore(addr)
 
 	res, err := s.GetAccount("test")
 
