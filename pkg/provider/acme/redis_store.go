@@ -30,30 +30,8 @@ func NewRedisStore(Addr string) *RedisStore {
 	return store
 }
 
-// GetAccount returns ACME Account.
-func (s *RedisStore) GetAccount(resolverName string) (*Account, error) {
-	var account Account
-	//if err := s.rdb.HGetAll(s.ctx, resolverName).Scan(&account); err != nil {
-	//	return nil, err
-	//}
-	//accountJSON, err := s.rdb.Bytes(s.rh.JSONGet("student", "."))
-	res, err := s.rh.JSONGet(resolverName, ".")
-	if err != nil {
-		return nil, err
-	}
-
-	err = json.Unmarshal(res.([]byte), &account)
-	if err != nil {
-		log.Fatalf("Failed to JSON Unmarshal")
-		return nil, err
-	}
-
-	return &account, nil
-}
-
-// SaveAccount stores ACME Account.
-func (s *RedisStore) SaveAccount(resolverName string, account *Account) error {
-	_, err := s.rh.JSONSet(resolverName, ".", account)
+func (s *RedisStore) save(resolverName string, storedData *StoredData) error {
+	_, err := s.rh.JSONSet(resolverName, ".", storedData)
 	if err != nil {
 		return err
 	}
@@ -61,16 +39,71 @@ func (s *RedisStore) SaveAccount(resolverName string, account *Account) error {
 	return nil
 }
 
+func (s *RedisStore) get(resolverName string) (*StoredData, error) {
+	var data StoredData
+	res, err := s.rh.JSONGet(resolverName, ".")
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(res.([]byte), &data)
+	if err != nil {
+		log.Fatalf("Failed to JSON Unmarshal")
+		return nil, err
+	}
+
+	return &data, nil
+}
+
+// GetAccount returns ACME Account.
+func (s *RedisStore) GetAccount(resolverName string) (*Account, error) {
+	data, err := s.get(resolverName)
+	if err != nil {
+		return nil, err
+	}
+
+	return data.Account, nil
+
+}
+
+// SaveAccount stores ACME Account.
+func (s *RedisStore) SaveAccount(resolverName string, account *Account) error {
+	storedData, err := s.get(resolverName)
+	if err != nil {
+		return err
+	}
+
+	storedData.Account = account
+	save_err := s.save(resolverName, storedData)
+	if save_err != nil {
+		return save_err
+	}
+
+	return nil
+}
+
 // GetCertificates returns ACME Certificates list.
 func (s *RedisStore) GetCertificates(resolverName string) ([]*CertAndStore, error) {
-	panic("TODO")
+	storedData, err := s.get(resolverName)
+	if err != nil {
+		return nil, err
+	}
 
-	return nil, nil
+	return storedData.Certificates, nil
 }
 
 // SaveCertificates stores ACME Certificates list.
 func (s *RedisStore) SaveCertificates(resolverName string, certificates []*CertAndStore) error {
-	panic("TODO")
+	storedData, err := s.get(resolverName)
+	if err != nil {
+		return err
+	}
+
+	storedData.Certificates = certificates
+	save_err := s.save(resolverName, storedData)
+	if save_err != nil {
+		return save_err
+	}
 
 	return nil
 }

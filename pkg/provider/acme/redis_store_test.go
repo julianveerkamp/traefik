@@ -21,8 +21,12 @@ func TestRedisStore_GetAccount(t *testing.T) {
 	account := Account{
 		Email: "some42@email.com",
 	}
+	storedData := StoredData{
+		Account:      &account,
+		Certificates: nil,
+	}
 
-	_, exp_err := rh.JSONSet("test", ".", account)
+	_, exp_err := rh.JSONSet("test", ".", storedData)
 	require.NoError(t, exp_err)
 
 	s := NewRedisStore(addr)
@@ -53,11 +57,12 @@ func TestRedisStore_SaveAccount(t *testing.T) {
 	})
 	rh.SetGoRedisClient(rdb)
 
-	res, act_err := rh.JSONGet("test", ".")
-	require.NoError(t, act_err)
+	res, actErr := rh.JSONGet("test", ".")
+	require.NoError(t, actErr)
 
-	var actual Account
-	json.Unmarshal(res.([]byte), &actual)
+	var actual StoredData
+	jsonErr := json.Unmarshal(res.([]byte), &actual)
+	require.NoError(t, jsonErr)
 
-	assert.Equal(t, account, actual)
+	assert.Equal(t, &account, actual.Account)
 }
