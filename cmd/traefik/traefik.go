@@ -449,9 +449,11 @@ func initACMEProvider(c *static.Configuration, providerAggregator *aggregator.Pr
 		if localStores[resolver.ACME.Storage] == nil {
 			switch {
 			case strings.HasPrefix(resolver.ACME.Storage, "redis://"):
-				localStores[resolver.ACME.Storage] = acme.NewRedisStore(resolver.ACME.Storage)
+				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "redis://")
+				localStores[resolver.ACME.Storage] = acme.NewRedisStore(storageName)
 			case strings.HasPrefix(resolver.ACME.Storage, "dynamo://"):
-				localStores[resolver.ACME.Storage] = acme.NewDynamoStore(resolver.ACME.Storage)
+				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "dynamo://")
+				localStores[resolver.ACME.Storage] = acme.NewDynamoStore(storageName)
 			default:
 				localStores[resolver.ACME.Storage] = acme.NewLocalStore(resolver.ACME.Storage)
 			}
