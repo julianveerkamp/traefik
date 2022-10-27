@@ -14,7 +14,7 @@ import (
 func TestValkeyrieStore_EmptyGetAccount(t *testing.T) {
 	mr := miniredis.RunT(t)
 
-	s := NewValkeyrieStore(mr.Addr())
+	s := NewValkeyrieStore(mr.Addr(), redis.StoreName)
 
 	account, err := s.GetAccount("test")
 	require.NoError(t, err)
@@ -39,7 +39,7 @@ func TestValkeyrieStore_GetAccount(t *testing.T) {
 	err = kv.Put(ctx, "test_account", data, nil)
 	require.NoError(t, err)
 
-	s := NewValkeyrieStore(addr)
+	s := NewValkeyrieStore(addr, redis.StoreName)
 
 	actual, err := s.GetAccount("test")
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestValkeyrieStore_GetAccount(t *testing.T) {
 
 func TestValkeyrieStore_SaveAccount(t *testing.T) {
 	mr := miniredis.RunT(t)
-	s := NewValkeyrieStore(mr.Addr())
+	s := NewValkeyrieStore(mr.Addr(), redis.StoreName)
 
 	account := Account{
 		Email: "some42@email.com",

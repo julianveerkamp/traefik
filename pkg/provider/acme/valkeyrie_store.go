@@ -17,10 +17,10 @@ type ValkeyrieStore struct {
 }
 
 // NewValkeyrieStore initializes a new ValkeyrieStore with an URL.
-func NewValkeyrieStore(Addr string) *ValkeyrieStore {
+func NewValkeyrieStore(Addr string, storeName string) *ValkeyrieStore {
 	ctx := context.Background()
 	config := &redis.Config{}
-	kv, err := valkeyrie.NewStore(ctx, redis.StoreName, []string{Addr}, config)
+	kv, err := valkeyrie.NewStore(ctx, storeName, []string{Addr}, config)
 	if err != nil {
 		print(err)
 	}
