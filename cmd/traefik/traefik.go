@@ -18,6 +18,8 @@ import (
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/go-acme/lego/v4/challenge"
 	gokitmetrics "github.com/go-kit/kit/metrics"
+	"github.com/kvtools/dynamodb"
+	"github.com/kvtools/redis"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/traefik/paerser/cli"
@@ -450,10 +452,10 @@ func initACMEProvider(c *static.Configuration, providerAggregator *aggregator.Pr
 			switch {
 			case strings.HasPrefix(resolver.ACME.Storage, "redis://"):
 				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "redis://")
-				localStores[resolver.ACME.Storage] = acme.NewRedisStore(storageName)
+				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageName, redis.StoreName)
 			case strings.HasPrefix(resolver.ACME.Storage, "dynamo://"):
 				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "dynamo://")
-				localStores[resolver.ACME.Storage] = acme.NewDynamoStore(storageName)
+				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageName, dynamodb.StoreName)
 			default:
 				localStores[resolver.ACME.Storage] = acme.NewLocalStore(resolver.ACME.Storage)
 			}
