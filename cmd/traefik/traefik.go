@@ -455,7 +455,7 @@ func initACMEProvider(c *static.Configuration, providerAggregator *aggregator.Pr
 				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageName, redis.StoreName, nil)
 			case strings.HasPrefix(resolver.ACME.Storage, "dynamo://"):
 				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "dynamo://")
-				config := dynamodb.Config{Bucket: "traefik"}
+				config := &dynamodb.Config{Bucket: "traefik"}
 				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageName, dynamodb.StoreName, config)
 			default:
 				localStores[resolver.ACME.Storage] = acme.NewLocalStore(resolver.ACME.Storage)
