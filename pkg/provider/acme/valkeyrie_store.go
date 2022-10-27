@@ -3,7 +3,6 @@ package acme
 import (
 	"context"
 	"encoding/json"
-	"github.com/kvtools/redis"
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
 )
@@ -17,9 +16,8 @@ type ValkeyrieStore struct {
 }
 
 // NewValkeyrieStore initializes a new ValkeyrieStore with an URL.
-func NewValkeyrieStore(Addr string, storeName string) *ValkeyrieStore {
+func NewValkeyrieStore(Addr string, storeName string, config valkeyrie.Config) *ValkeyrieStore {
 	ctx := context.Background()
-	config := &redis.Config{}
 	kv, err := valkeyrie.NewStore(ctx, storeName, []string{Addr}, config)
 	if err != nil {
 		print(err)
