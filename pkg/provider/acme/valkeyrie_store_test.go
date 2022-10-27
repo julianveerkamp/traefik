@@ -55,7 +55,7 @@ func TestValkeyrieStore_SaveAccount(t *testing.T) {
 		Email: "some42@email.com",
 	}
 
-	err = s.SaveAccount("test", &account)
+	err := s.SaveAccount("test", &account)
 	require.NoError(t, err)
 
 	pair, err := s.kv.Get(s.ctx, "test_account", nil)
