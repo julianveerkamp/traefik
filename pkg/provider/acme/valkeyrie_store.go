@@ -103,6 +103,10 @@ func (s *ValkeyrieStore) GetCertificates(resolverName string) ([]*CertAndStore, 
 
 	var certificates []*CertAndStore
 
+	if data == nil {
+		return certificates, nil
+	}
+
 	err = json.Unmarshal(data, &certificates)
 	if err != nil {
 		return nil, err
