@@ -3,12 +3,13 @@ package acme
 import (
 	"context"
 	"encoding/json"
+	"testing"
+
 	"github.com/alicebob/miniredis/v2"
 	"github.com/kvtools/redis"
 	"github.com/kvtools/valkeyrie"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestValkeyrieStore_EmptyGetAccount(t *testing.T) {

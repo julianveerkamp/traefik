@@ -3,8 +3,10 @@ package acme
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
+	"github.com/traefik/traefik/v2/pkg/log"
 )
 
 var _ Store = (*ValkeyrieStore)(nil)
@@ -16,11 +18,12 @@ type ValkeyrieStore struct {
 }
 
 // NewValkeyrieStore initializes a new ValkeyrieStore with an URL.
-func NewValkeyrieStore(Addr string, storeName string, config valkeyrie.Config) *ValkeyrieStore {
+func NewValkeyrieStore(addr string, storeName string, config valkeyrie.Config) *ValkeyrieStore {
+	logger := log.WithoutContext().WithField(log.ProviderName, "acme")
 	ctx := context.Background()
-	kv, err := valkeyrie.NewStore(ctx, storeName, []string{Addr}, config)
+	kv, err := valkeyrie.NewStore(ctx, storeName, []string{addr}, config)
 	if err != nil {
-		print(err)
+		logger.Error(err)
 	}
 	s := &ValkeyrieStore{ctx: ctx, kv: kv}
 
