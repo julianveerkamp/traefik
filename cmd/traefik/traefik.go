@@ -34,7 +34,6 @@ import (
 	"github.com/traefik/traefik/v2/pkg/log"
 	"github.com/traefik/traefik/v2/pkg/metrics"
 	"github.com/traefik/traefik/v2/pkg/middlewares/accesslog"
-	"github.com/traefik/traefik/v2/pkg/middlewares/capture"
 	"github.com/traefik/traefik/v2/pkg/provider/acme"
 	"github.com/traefik/traefik/v2/pkg/provider/aggregator"
 	"github.com/traefik/traefik/v2/pkg/provider/hub"
@@ -289,9 +288,8 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 
 	accessLog := setupAccessLog(staticConfiguration.AccessLog)
 	tracer := setupTracing(staticConfiguration.Tracing)
-	captureMiddleware := setupCapture(staticConfiguration)
 
-	chainBuilder := middleware.NewChainBuilder(metricsRegistry, accessLog, tracer, captureMiddleware)
+	chainBuilder := middleware.NewChainBuilder(metricsRegistry, accessLog, tracer)
 	routerFactory := server.NewRouterFactory(*staticConfiguration, managerFactory, tlsManager, chainBuilder, pluginBuilder, metricsRegistry)
 
 	// Watcher
@@ -648,13 +646,6 @@ func setupTracing(conf *static.Tracing) *tracing.Tracing {
 		return nil
 	}
 	return tracer
-}
-
-func setupCapture(staticConfiguration *static.Configuration) *capture.Handler {
-	if staticConfiguration.AccessLog == nil && staticConfiguration.Metrics == nil {
-		return nil
-	}
-	return &capture.Handler{}
 }
 
 func configureLogging(staticConfiguration *static.Configuration) {
