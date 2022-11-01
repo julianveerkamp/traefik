@@ -184,7 +184,9 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 	// ACME
 
 	tlsManager := traefiktls.NewManager()
-	httpChallengeProvider := acme.NewChallengeHTTP()
+	//httpChallengeProvider := acme.NewChallengeHTTP()
+	redisAddr := "redis-challenge:6379"
+	httpChallengeProvider := acme.NewValkeyrieChallengeHTTP(redisAddr, redis.StoreName, nil)
 
 	tlsChallengeProvider := acme.NewChallengeTLSALPN()
 	err = providerAggregator.AddProvider(tlsChallengeProvider)
