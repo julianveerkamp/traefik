@@ -2,17 +2,13 @@ package acme
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"net/url"
-	"regexp"
 	"sync"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/go-acme/lego/v4/challenge/http01"
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
 	"github.com/traefik/traefik/v2/pkg/log"
@@ -92,7 +88,7 @@ func (c *ValkeyrieChallengeHTTP) ServeHTTP(rw http.ResponseWriter, req *http.Req
 	ctx := log.With(req.Context(), log.Str(log.ProviderName, "acme"))
 	logger := log.FromContext(ctx)
 
-	token, err := c.getPathParam(req.URL)
+	token, err := getPathParam(req.URL)
 	if err != nil {
 		logger.Errorf("Unable to get token: %v.", err)
 		rw.WriteHeader(http.StatusNotFound)
@@ -160,17 +156,6 @@ func (c *ValkeyrieChallengeHTTP) getTokenValue(ctx context.Context, token, domai
 	}
 
 	return result
-}
-
-func (*ValkeyrieChallengeHTTP) getPathParam(uri *url.URL) (string, error) {
-	exp := regexp.MustCompile(fmt.Sprintf(`^%s([^/]+)/?$`, http01.ChallengePath("")))
-	parts := exp.FindStringSubmatch(uri.Path)
-
-	if len(parts) != 2 {
-		return "", errors.New("missing token")
-	}
-
-	return parts[1], nil
 }
 
 func (*ValkeyrieChallengeHTTP) getValkeyrieKey(token, domain string) string {
