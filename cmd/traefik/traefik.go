@@ -194,7 +194,12 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 		_, storageName, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "redis://")
 		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageName, redis.StoreName, nil)
 	case strings.HasPrefix(staticConfiguration.HTTPChallengeStore, "dynamo://"):
-		_, storageName, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "dynamo://")
+		// configuration value is supposed to be: dynamodb://<aws-region>:<aws-bucket-name>
+		_, storageAddr, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "dynamo://")
+		awsRegion, bucketName, _ := strings.Cut(storageAddr, ":")
+
+		storageName := "dynamodb." + awsRegion + ".amazonaws.com"
+		config := &dynamodb.Config{Bucket: bucketName}
 		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageName, dynamodb.StoreName, config)
 	default:
 		httpChallengeProvider = acme.NewChallengeHTTP()
