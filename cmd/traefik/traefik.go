@@ -52,9 +52,6 @@ import (
 	"github.com/vulcand/oxy/roundrobin"
 )
 
-// TODO: Where to put this?
-const InMemoryStoreName string = "in-memory"
-
 func main() {
 	// traefik config inits
 	tConfig := cmd.NewTraefikConfiguration()
@@ -403,10 +400,11 @@ func getStorageDetails(storage string) (string, string, valkeyrie.Config) {
 		_, storageInfo, _ := strings.Cut(storage, "dynamo://")
 		awsRegion, bucketName, _ := strings.Cut(storageInfo, ":")
 		storageAddr := "dynamodb." + awsRegion + ".amazonaws.com"
+		os.Setenv("AWS_REGION", awsRegion)
 		config := &dynamodb.Config{Bucket: bucketName}
 		return storageAddr, dynamodb.StoreName, config
 	default:
-		return storage, InMemoryStoreName, nil
+		return storage, "", nil
 	}
 }
 
