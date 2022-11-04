@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -46,11 +47,99 @@ func (c *ValkeyrieChallengeHTTP) Present(domain, token, keyAuth string) error {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	return c.kv.Put(c.ctx, c.getValkeyrieKey(token, domain), []byte(keyAuth), nil)
+	isMain, err := c.isChallengeMain()
+	if err != nil {
+		return fmt.Errorf("error while checking if instance is the HTTP challenge main: %s", err)
+	}
+
+	if !isMain {
+		// TODO: return error here or return nil (which means that the check for the token will fail)
+		return fmt.Errorf("instance is not HTTP Challenge main. It is not allowed to present new challenges")
+	}
+
+	// Present
+	valkeyrieKey := c.getValkeyrieKey(token, domain)
+	valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
+	log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
+	locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, &store.LockOptions{TTL: 20 * time.Second, Value: []byte("asfd")})
+	log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
+	_, err = locker.Lock(c.ctx)
+	if err != nil {
+		log.WithoutContext().Infoln("Lock error: " + err.Error())
+	}
+	defer logUnlocking(c.ctx, locker, valkeyrieKeyLock)
+	log.WithoutContext().Infoln("Got lock " + valkeyrieKeyLock)
+
+	err = c.kv.Put(c.ctx, valkeyrieKey, []byte(keyAuth), nil)
+	log.WithoutContext().Infoln("Put value into kv")
+	return err
+}
+
+func logUnlocking(ctx context.Context, locker store.Locker, lockName string) {
+	log.WithoutContext().Infoln("Trying to unlock lock " + lockName)
+	err := locker.Unlock(ctx)
+	if err != nil {
+		log.WithoutContext().Infoln("Unlock error: " + err.Error())
+	}
+	log.WithoutContext().Infoln("Unlocked lock " + lockName)
+}
+
+// returns true if the current instance already is the main or got "elected" as the main by being the first
+// instance which wants to become the main because there was no other main before or after the old main's TTL
+// expired
+// returns false if another instance is the main
+func (c *ValkeyrieChallengeHTTP) isChallengeMain() (bool, error) {
+	// Get lock for main
+	mainKey := "http_challenge_main"
+	mainLockKey := "http_challenge_main_lock"
+
+	locker, _ := c.kv.NewLock(c.ctx, mainLockKey, nil)
+	log.WithoutContext().Infoln("Trying to get lock " + mainLockKey)
+	_, err := locker.Lock(c.ctx)
+	if err != nil {
+		log.WithoutContext().Infoln("Lock error: " + err.Error())
+	}
+	defer logUnlocking(c.ctx, locker, mainLockKey)
+	log.WithoutContext().Infoln("Got lock " + mainLockKey)
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		return false, err
+	}
+
+	// Check if main already exists
+	// If the TTL is expired, this function should return false
+	exists, err := c.kv.Exists(c.ctx, mainKey, nil)
+	if err != nil {
+		return false, err
+	}
+
+	if exists {
+		// main exists -> Check if this instance already is main
+		pair, err := c.kv.Get(c.ctx, mainKey, nil)
+		if err != nil {
+			return false, err
+		}
+
+		currentMainName := string(pair.Value)
+		if hostname != currentMainName {
+			return false, nil
+		}
+	}
+
+	err = c.kv.Put(c.ctx, mainKey, []byte(hostname), &store.WriteOptions{TTL: 15 * time.Minute})
+
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // CleanUp cleans the challenges when certificate is obtained.
 func (c *ValkeyrieChallengeHTTP) CleanUp(domain, token, _ string) error {
+	log.WithoutContext().Infoln("CleanUp for " + domain + " with token " + token)
+
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -59,6 +148,14 @@ func (c *ValkeyrieChallengeHTTP) CleanUp(domain, token, _ string) error {
 	}
 
 	valkeyrieKey := c.getValkeyrieKey(token, domain)
+	valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
+	log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
+	locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, nil)
+	log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
+	locker.Lock(c.ctx)
+	defer locker.Unlock(c.ctx)
+
+	log.WithoutContext().Infoln("Got lock " + valkeyrieKeyLock)
 
 	exists, err := c.kv.Exists(c.ctx, valkeyrieKey, nil)
 	if err != nil {
@@ -127,6 +224,15 @@ func (c *ValkeyrieChallengeHTTP) getTokenValue(ctx context.Context, token, domai
 		defer c.lock.RUnlock()
 
 		valkeyrieKey := c.getValkeyrieKey(token, domain)
+		valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
+		log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
+		locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, nil)
+		log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
+		locker.Lock(c.ctx)
+		defer locker.Unlock(c.ctx)
+
+		log.WithoutContext().Infoln("Got lock " + valkeyrieKeyLock)
+
 		exists, err := c.kv.Exists(c.ctx, valkeyrieKey, nil)
 		if err != nil {
 			return err
@@ -160,4 +266,8 @@ func (c *ValkeyrieChallengeHTTP) getTokenValue(ctx context.Context, token, domai
 
 func (*ValkeyrieChallengeHTTP) getValkeyrieKey(token, domain string) string {
 	return domain + "_" + token
+}
+
+func (*ValkeyrieChallengeHTTP) getValkeyrieKeyLock(token, domain string) string {
+	return domain + "_" + token + "_lock"
 }
