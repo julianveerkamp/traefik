@@ -78,6 +78,8 @@ type Configuration struct {
 
 	CertificatesResolvers map[string]CertificateResolver `description:"Certificates resolvers configuration." json:"certificatesResolvers,omitempty" toml:"certificatesResolvers,omitempty" yaml:"certificatesResolvers,omitempty" export:"true"`
 
+	HTTPChallengeStore string `description:"HTTP challenge storage to use." json:"httpChallengeStore,omitempty" toml:"httpChallengeStore,omitempty" yaml:"httpChallengeStore,omitempty" export:"true"`
+
 	// Deprecated.
 	Pilot *Pilot `description:"Traefik Pilot configuration (Deprecated)." json:"pilot,omitempty" toml:"pilot,omitempty" yaml:"pilot,omitempty" export:"true"`
 
