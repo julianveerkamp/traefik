@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kvtools/redis"
+	"github.com/julianveerkamp/redis"
 	"github.com/traefik/traefik/v2/pkg/provider"
 	"github.com/traefik/traefik/v2/pkg/provider/kv"
 	"github.com/traefik/traefik/v2/pkg/types"

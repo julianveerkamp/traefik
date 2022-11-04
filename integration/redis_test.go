@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/go-check/check"
-	"github.com/kvtools/redis"
+	"github.com/julianveerkamp/redis"
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
 	"github.com/pmezard/go-difflib/difflib"
