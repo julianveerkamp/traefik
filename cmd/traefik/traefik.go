@@ -20,6 +20,7 @@ import (
 	gokitmetrics "github.com/go-kit/kit/metrics"
 	"github.com/kvtools/dynamodb"
 	"github.com/kvtools/redis"
+	"github.com/kvtools/valkeyrie"
 	"github.com/sirupsen/logrus"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/traefik/paerser/cli"
@@ -50,6 +51,9 @@ import (
 	"github.com/traefik/traefik/v2/pkg/version"
 	"github.com/vulcand/oxy/roundrobin"
 )
+
+// TODO: Where to put this?
+const InMemoryStoreName string = "in-memory"
 
 func main() {
 	// traefik config inits
@@ -189,18 +193,11 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 		challenge.Provider
 		http.Handler
 	}
-	switch {
-	case strings.HasPrefix(staticConfiguration.HTTPChallengeStore, "redis://"):
-		_, storageName, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "redis://")
-		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageName, redis.StoreName, nil)
-	case strings.HasPrefix(staticConfiguration.HTTPChallengeStore, "dynamo://"):
-		// configuration value is supposed to be: dynamodb://<aws-region>:<aws-bucket-name>
-		_, storageAddr, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "dynamo://")
-		awsRegion, bucketName, _ := strings.Cut(storageAddr, ":")
-
-		storageName := "dynamodb." + awsRegion + ".amazonaws.com"
-		config := &dynamodb.Config{Bucket: bucketName}
-		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageName, dynamodb.StoreName, config)
+	switch storageAddr, storageName, storageConfig := getStorageDetails(staticConfiguration.HTTPChallengeStore); storageName {
+	case redis.StoreName:
+		fallthrough
+	case dynamodb.StoreName:
+		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageAddr, storageName, storageConfig)
 	default:
 		httpChallengeProvider = acme.NewChallengeHTTP()
 	}
@@ -394,6 +391,25 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 	return server.NewServer(routinesPool, serverEntryPointsTCP, serverEntryPointsUDP, watcher, chainBuilder, accessLog), nil
 }
 
+// Returns (storageAddress, storeName, storeConfig)
+func getStorageDetails(storage string) (string, string, valkeyrie.Config) {
+	switch {
+	case strings.HasPrefix(storage, "redis://"):
+		// configuration value is supposed to be: redis://<redis-instance-address>:(<redis-instance-port>)
+		_, storageAddr, _ := strings.Cut(storage, "redis://")
+		return storageAddr, redis.StoreName, nil
+	case strings.HasPrefix(storage, "dynamo://"):
+		// configuration value is supposed to be: dynamodb://<aws-region>:<aws-bucket-name>
+		_, storageInfo, _ := strings.Cut(storage, "dynamo://")
+		awsRegion, bucketName, _ := strings.Cut(storageInfo, ":")
+		storageAddr := "dynamodb." + awsRegion + ".amazonaws.com"
+		config := &dynamodb.Config{Bucket: bucketName}
+		return storageAddr, dynamodb.StoreName, config
+	default:
+		return storage, InMemoryStoreName, nil
+	}
+}
+
 func getHTTPChallengeHandler(acmeProviders []*acme.Provider, httpChallengeProvider http.Handler) http.Handler {
 	var acmeHTTPHandler http.Handler
 	for _, p := range acmeProviders {
@@ -466,14 +482,11 @@ func initACMEProvider(c *static.Configuration, providerAggregator *aggregator.Pr
 		}
 
 		if localStores[resolver.ACME.Storage] == nil {
-			switch {
-			case strings.HasPrefix(resolver.ACME.Storage, "redis://"):
-				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "redis://")
-				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageName, redis.StoreName, nil)
-			case strings.HasPrefix(resolver.ACME.Storage, "dynamo://"):
-				_, storageName, _ := strings.Cut(resolver.ACME.Storage, "dynamo://")
-				config := &dynamodb.Config{Bucket: "traefik"}
-				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageName, dynamodb.StoreName, config)
+			switch storageAddr, storageName, storageConfig := getStorageDetails(resolver.ACME.Storage); storageName {
+			case redis.StoreName:
+				fallthrough
+			case dynamodb.StoreName:
+				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageAddr, storageName, storageConfig)
 			default:
 				localStores[resolver.ACME.Storage] = acme.NewLocalStore(resolver.ACME.Storage)
 			}
