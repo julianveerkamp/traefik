@@ -184,9 +184,21 @@ func setupServer(staticConfiguration *static.Configuration) (*server.Server, err
 	// ACME
 
 	tlsManager := traefiktls.NewManager()
-	//httpChallengeProvider := acme.NewChallengeHTTP()
-	redisAddr := "redis-challenge:6379"
-	httpChallengeProvider := acme.NewValkeyrieChallengeHTTP(redisAddr, redis.StoreName, nil)
+
+	var httpChallengeProvider interface {
+		challenge.Provider
+		http.Handler
+	}
+	switch {
+	case strings.HasPrefix(staticConfiguration.HTTPChallengeStore, "redis://"):
+		_, storageName, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "redis://")
+		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageName, redis.StoreName, nil)
+	case strings.HasPrefix(staticConfiguration.HTTPChallengeStore, "dynamo://"):
+		_, storageName, _ := strings.Cut(staticConfiguration.HTTPChallengeStore, "dynamo://")
+		httpChallengeProvider = acme.NewValkeyrieChallengeHTTP(storageName, dynamodb.StoreName, config)
+	default:
+		httpChallengeProvider = acme.NewChallengeHTTP()
+	}
 
 	tlsChallengeProvider := acme.NewChallengeTLSALPN()
 	err = providerAggregator.AddProvider(tlsChallengeProvider)
