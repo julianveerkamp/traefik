@@ -37,7 +37,7 @@ require (
 	github.com/influxdata/influxdb-client-go/v2 v2.7.0
 	github.com/influxdata/influxdb1-client v0.0.0-20191209144304-8bf82d3c094d
 	github.com/instana/go-sensor v1.38.3
-	github.com/julianveerkamp/redis v0.1.1
+	github.com/julianveerkamp/redis v0.1.2
 	github.com/klauspost/compress v1.14.2
 	github.com/kvtools/consul v1.0.2
 	github.com/kvtools/dynamodb v1.0.2
