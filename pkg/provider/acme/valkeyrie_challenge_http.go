@@ -61,7 +61,7 @@ func (c *ValkeyrieChallengeHTTP) Present(domain, token, keyAuth string) error {
 	valkeyrieKey := c.getValkeyrieKey(token, domain)
 	valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
 	log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
-	locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, &store.LockOptions{TTL: 20 * time.Second, Value: []byte("asfd")})
+	locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, nil)
 	log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	_, err = locker.Lock(c.ctx)
 	if err != nil {
