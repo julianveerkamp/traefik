@@ -7,6 +7,7 @@ import (
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
 	"github.com/traefik/traefik/v2/pkg/log"
+	"github.com/traefik/traefik/v2/pkg/safe"
 )
 
 var _ Store = (*ValkeyrieStore)(nil)
@@ -31,7 +32,15 @@ func NewValkeyrieStore(addr string, storeName string, config valkeyrie.Config) *
 }
 
 func (s *ValkeyrieStore) save(key string, data []byte) error {
-	err := s.kv.Put(s.ctx, key, data, nil)
+	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
+	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
+	_, err := locker.Lock(s.ctx)
+	if err != nil {
+		return err
+	}
+	defer locker.Unlock(s.ctx)
+
+	err = s.kv.Put(s.ctx, key, data, nil)
 	if err != nil {
 		return err
 	}
@@ -39,6 +48,14 @@ func (s *ValkeyrieStore) save(key string, data []byte) error {
 }
 
 func (s *ValkeyrieStore) get(key string) ([]byte, error) {
+	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
+	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
+	_, err := locker.Lock(s.ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer locker.Unlock(s.ctx)
+
 	exists, err := s.kv.Exists(s.ctx, key, nil)
 	if err != nil {
 		return nil, err
@@ -78,6 +95,10 @@ func (s *ValkeyrieStore) GetAccount(resolverName string) (*Account, error) {
 
 func (s *ValkeyrieStore) getKey(resolverName string, keyType string) string {
 	return resolverName + "_" + keyType
+}
+
+func (s *ValkeyrieStore) getLockKey(key string) string {
+	return key + "_lock"
 }
 
 // SaveAccount stores ACME Account.
@@ -127,6 +148,37 @@ func (s *ValkeyrieStore) SaveCertificates(resolverName string, certificates []*C
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func (s *ValkeyrieStore) WatchCertificateChanges(resolverName string, pool *safe.Pool, onChange func()) error {
+	key := s.getKey(resolverName, "certificates")
+	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
+	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
+	_, err := locker.Lock(s.ctx)
+	if err != nil {
+		return err
+	}
+	defer locker.Unlock(s.ctx)
+	keyChangedChan, err := s.kv.Watch(s.ctx, key, nil)
+
+	if err != nil {
+		return err
+	}
+
+	pool.GoCtx(func(ctxPool context.Context) {
+		for {
+			select {
+			//case changedStorePair := <-keyChangedChan:
+			case <-keyChangedChan:
+				log.WithoutContext().Infoln("ValkeyrieStore watch event")
+				onChange()
+			case <-ctxPool.Done():
+				return
+			}
+		}
+	})
 
 	return nil
 }

@@ -216,6 +216,29 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 
 	p.renewCertificates(ctx, renewPeriod)
 
+	switch v := p.Store.(type) {
+	case *ValkeyrieStore:
+		err := v.WatchCertificateChanges(p.ResolverName, pool, func() {
+			log.FromContext(ctx).Infoln("Provider watch event")
+			p.certificatesMu.Lock()
+			var err error
+			log.FromContext(ctx).Infoln("Provider watch event: cert count before: " + fmt.Sprint(len(p.certificates)))
+			p.certificates, err = v.GetCertificates(p.ResolverName)
+			msg := p.buildMessage()
+			log.FromContext(ctx).Infoln("Provider watch event: cert count after: " + fmt.Sprint(len(p.certificates)))
+			p.certificatesMu.Unlock()
+			if err != nil {
+				log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
+			}
+			p.configurationChan <- msg
+			log.FromContext(ctx).Infoln("Provider watch event set new certificates")
+		})
+
+		if err != nil {
+			log.FromContext(ctx).Errorln("Couldn't watch certificates in store: " + err.Error())
+		}
+	}
+
 	ticker := time.NewTicker(renewInterval)
 	pool.GoCtx(func(ctxPool context.Context) {
 		for {
