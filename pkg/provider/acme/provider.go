@@ -218,25 +218,36 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 
 	switch v := p.Store.(type) {
 	case *ValkeyrieStore:
-		err := v.WatchCertificateChanges(p.ResolverName, pool, func() {
-			log.FromContext(ctx).Infoln("Provider watch event")
-			p.certificatesMu.Lock()
-			var err error
-			log.FromContext(ctx).Infoln("Provider watch event: cert count before: " + fmt.Sprint(len(p.certificates)))
-			p.certificates, err = v.GetCertificates(p.ResolverName)
-			msg := p.buildMessage()
-			log.FromContext(ctx).Infoln("Provider watch event: cert count after: " + fmt.Sprint(len(p.certificates)))
-			p.certificatesMu.Unlock()
-			if err != nil {
-				log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
-			}
-			p.configurationChan <- msg
-			log.FromContext(ctx).Infoln("Provider watch event set new certificates")
-		})
+		certificatesChangedChannel, err := v.WatchCertificateChanges(p.ResolverName)
 
 		if err != nil {
 			log.FromContext(ctx).Errorln("Couldn't watch certificates in store: " + err.Error())
+			break
 		}
+
+		pool.GoCtx(func(ctxPool context.Context) {
+			for {
+				select {
+				case <-ctxPool.Done():
+					return
+				case <-certificatesChangedChannel:
+					log.FromContext(ctx).Infoln("Provider watch event")
+					p.certificatesMu.Lock()
+					var err error
+					log.FromContext(ctx).Infoln("Provider watch event: cert count before: " + fmt.Sprint(len(p.certificates)))
+					p.certificates, err = v.GetCertificates(p.ResolverName)
+					msg := p.buildMessage()
+					log.FromContext(ctx).Infoln("Provider watch event: cert count after: " + fmt.Sprint(len(p.certificates)))
+					p.certificatesMu.Unlock()
+					if err != nil {
+						log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
+					}
+					p.configurationChan <- msg
+					log.FromContext(ctx).Infoln("Provider watch event set new certificates")
+				}
+			}
+		})
+
 	}
 
 	ticker := time.NewTicker(renewInterval)

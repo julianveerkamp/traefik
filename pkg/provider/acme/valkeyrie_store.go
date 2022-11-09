@@ -7,7 +7,6 @@ import (
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
 	"github.com/traefik/traefik/v2/pkg/log"
-	"github.com/traefik/traefik/v2/pkg/safe"
 )
 
 var _ Store = (*ValkeyrieStore)(nil)
@@ -152,33 +151,14 @@ func (s *ValkeyrieStore) SaveCertificates(resolverName string, certificates []*C
 	return nil
 }
 
-func (s *ValkeyrieStore) WatchCertificateChanges(resolverName string, pool *safe.Pool, onChange func()) error {
+func (s *ValkeyrieStore) WatchCertificateChanges(resolverName string) (<-chan *store.KVPair, error) {
 	key := s.getKey(resolverName, "certificates")
 	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
 	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	_, err := locker.Lock(s.ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer locker.Unlock(s.ctx)
-	keyChangedChan, err := s.kv.Watch(s.ctx, key, nil)
-
-	if err != nil {
-		return err
-	}
-
-	pool.GoCtx(func(ctxPool context.Context) {
-		for {
-			select {
-			//case changedStorePair := <-keyChangedChan:
-			case <-keyChangedChan:
-				log.WithoutContext().Infoln("ValkeyrieStore watch event")
-				onChange()
-			case <-ctxPool.Done():
-				return
-			}
-		}
-	})
-
-	return nil
+	return s.kv.Watch(s.ctx, key, nil)
 }
