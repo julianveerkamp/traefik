@@ -231,19 +231,17 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 				case <-ctxPool.Done():
 					return
 				case <-certificatesChangedChannel:
-					log.FromContext(ctx).Infoln("Provider watch event")
 					p.certificatesMu.Lock()
 					var err error
-					log.FromContext(ctx).Infoln("Provider watch event: cert count before: " + fmt.Sprint(len(p.certificates)))
 					p.certificates, err = v.GetCertificates(p.ResolverName)
 					msg := p.buildMessage()
-					log.FromContext(ctx).Infoln("Provider watch event: cert count after: " + fmt.Sprint(len(p.certificates)))
+					log.FromContext(ctx).Infoln("Refreshing local certificates because certificates have been changed in the key-value store. New certificate count: " + fmt.Sprint(len(p.certificates)))
 					p.certificatesMu.Unlock()
 					if err != nil {
 						log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
+						continue
 					}
 					p.configurationChan <- msg
-					log.FromContext(ctx).Infoln("Provider watch event set new certificates")
 				}
 			}
 		})

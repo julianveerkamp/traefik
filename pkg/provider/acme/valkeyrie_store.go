@@ -32,7 +32,6 @@ func NewValkeyrieStore(addr string, storeName string, config valkeyrie.Config) *
 
 func (s *ValkeyrieStore) save(key string, data []byte) error {
 	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
-	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	_, err := locker.Lock(s.ctx)
 	if err != nil {
 		return err
@@ -48,7 +47,6 @@ func (s *ValkeyrieStore) save(key string, data []byte) error {
 
 func (s *ValkeyrieStore) get(key string) ([]byte, error) {
 	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
-	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	_, err := locker.Lock(s.ctx)
 	if err != nil {
 		return nil, err
@@ -154,7 +152,6 @@ func (s *ValkeyrieStore) SaveCertificates(resolverName string, certificates []*C
 func (s *ValkeyrieStore) WatchCertificateChanges(resolverName string) (<-chan *store.KVPair, error) {
 	key := s.getKey(resolverName, "certificates")
 	locker, _ := s.kv.NewLock(s.ctx, s.getLockKey(key), nil)
-	//log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	_, err := locker.Lock(s.ctx)
 	if err != nil {
 		return nil, err

@@ -26,7 +26,6 @@ type ValkeyrieChallengeHTTP struct {
 
 // NewChallengeHTTP creates a new ChallengeHTTP.
 func NewValkeyrieChallengeHTTP(addr string, storeName string, config valkeyrie.Config) *ValkeyrieChallengeHTTP {
-	log.WithoutContext().Infoln("Created new ValkeyrieChallengeHTTP for " + storeName + " at " + addr)
 	logger := log.WithoutContext().WithField(log.ProviderName, "acme")
 
 	ctx := context.Background()
@@ -43,7 +42,6 @@ func NewValkeyrieChallengeHTTP(addr string, storeName string, config valkeyrie.C
 
 // Present presents a challenge to obtain new ACME certificate.
 func (c *ValkeyrieChallengeHTTP) Present(domain, token, keyAuth string) error {
-	log.WithoutContext().Infoln("Present for " + domain + " with token " + token + " and keyAuth " + keyAuth)
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -54,34 +52,20 @@ func (c *ValkeyrieChallengeHTTP) Present(domain, token, keyAuth string) error {
 
 	if !isMain {
 		// TODO: return error here or return nil (which means that the check for the token will fail)
-		return fmt.Errorf("instance is not HTTP Challenge main. It is not allowed to present new challenges")
+		return fmt.Errorf("instance is not HTTP challenge main. It is not allowed to present new challenges")
 	}
 
 	// Present
 	valkeyrieKey := c.getValkeyrieKey(token, domain)
 	valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
-	log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
 	locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, nil)
-	log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	_, err = locker.Lock(c.ctx)
 	if err != nil {
-		log.WithoutContext().Infoln("Lock error: " + err.Error())
+		return err
 	}
-	defer logUnlocking(c.ctx, locker, valkeyrieKeyLock)
-	log.WithoutContext().Infoln("Got lock " + valkeyrieKeyLock)
+	defer locker.Unlock(c.ctx)
 
-	err = c.kv.Put(c.ctx, valkeyrieKey, []byte(keyAuth), nil)
-	log.WithoutContext().Infoln("Put value into kv")
-	return err
-}
-
-func logUnlocking(ctx context.Context, locker store.Locker, lockName string) {
-	log.WithoutContext().Infoln("Trying to unlock lock " + lockName)
-	err := locker.Unlock(ctx)
-	if err != nil {
-		log.WithoutContext().Infoln("Unlock error: " + err.Error())
-	}
-	log.WithoutContext().Infoln("Unlocked lock " + lockName)
+	return c.kv.Put(c.ctx, valkeyrieKey, []byte(keyAuth), nil)
 }
 
 // returns true if the current instance already is the main or got "elected" as the main by being the first
@@ -94,13 +78,12 @@ func (c *ValkeyrieChallengeHTTP) isChallengeMain() (bool, error) {
 	mainLockKey := "http_challenge_main_lock"
 
 	locker, _ := c.kv.NewLock(c.ctx, mainLockKey, nil)
-	log.WithoutContext().Infoln("Trying to get lock " + mainLockKey)
 	_, err := locker.Lock(c.ctx)
 	if err != nil {
 		log.WithoutContext().Infoln("Lock error: " + err.Error())
+		return false, err
 	}
-	defer logUnlocking(c.ctx, locker, mainLockKey)
-	log.WithoutContext().Infoln("Got lock " + mainLockKey)
+	defer locker.Unlock(c.ctx)
 
 	hostname, err := os.Hostname()
 	if err != nil {
@@ -138,8 +121,6 @@ func (c *ValkeyrieChallengeHTTP) isChallengeMain() (bool, error) {
 
 // CleanUp cleans the challenges when certificate is obtained.
 func (c *ValkeyrieChallengeHTTP) CleanUp(domain, token, _ string) error {
-	log.WithoutContext().Infoln("CleanUp for " + domain + " with token " + token)
-
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -149,13 +130,9 @@ func (c *ValkeyrieChallengeHTTP) CleanUp(domain, token, _ string) error {
 
 	valkeyrieKey := c.getValkeyrieKey(token, domain)
 	valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
-	log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
 	locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, nil)
-	log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 	locker.Lock(c.ctx)
 	defer locker.Unlock(c.ctx)
-
-	log.WithoutContext().Infoln("Got lock " + valkeyrieKeyLock)
 
 	exists, err := c.kv.Exists(c.ctx, valkeyrieKey, nil)
 	if err != nil {
@@ -176,12 +153,10 @@ func (c *ValkeyrieChallengeHTTP) CleanUp(domain, token, _ string) error {
 
 // Timeout calculates the maximum of time allowed to resolved an ACME challenge.
 func (c *ValkeyrieChallengeHTTP) Timeout() (timeout, interval time.Duration) {
-	log.WithoutContext().Infoln("Timeout")
 	return 60 * time.Second, 5 * time.Second
 }
 
 func (c *ValkeyrieChallengeHTTP) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	log.WithoutContext().Infoln("Serving HTTP for " + req.RequestURI)
 	ctx := log.With(req.Context(), log.Str(log.ProviderName, "acme"))
 	logger := log.FromContext(ctx)
 
@@ -225,13 +200,9 @@ func (c *ValkeyrieChallengeHTTP) getTokenValue(ctx context.Context, token, domai
 
 		valkeyrieKey := c.getValkeyrieKey(token, domain)
 		valkeyrieKeyLock := c.getValkeyrieKeyLock(token, domain)
-		log.WithoutContext().Infoln("New lock... " + valkeyrieKeyLock)
 		locker, _ := c.kv.NewLock(c.ctx, valkeyrieKeyLock, nil)
-		log.WithoutContext().Infoln("Trying to get lock " + valkeyrieKeyLock)
 		locker.Lock(c.ctx)
 		defer locker.Unlock(c.ctx)
-
-		log.WithoutContext().Infoln("Got lock " + valkeyrieKeyLock)
 
 		exists, err := c.kv.Exists(c.ctx, valkeyrieKey, nil)
 		if err != nil {
