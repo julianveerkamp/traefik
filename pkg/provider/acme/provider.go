@@ -13,12 +13,15 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/go-acme/lego/v4/certificate"
 	"github.com/go-acme/lego/v4/challenge"
 	"github.com/go-acme/lego/v4/challenge/dns01"
 	"github.com/go-acme/lego/v4/lego"
 	"github.com/go-acme/lego/v4/providers/dns"
 	"github.com/go-acme/lego/v4/registration"
+	"github.com/kvtools/valkeyrie/store"
+	"github.com/scaleway/scaleway-sdk-go/logger"
 	ptypes "github.com/traefik/paerser/types"
 	"github.com/traefik/traefik/v2/pkg/config/dynamic"
 	"github.com/traefik/traefik/v2/pkg/log"
@@ -96,6 +99,7 @@ type Provider struct {
 	*Configuration
 	ResolverName string
 	Store        Store `json:"store,omitempty" toml:"store,omitempty" yaml:"store,omitempty"`
+	storeMu      sync.RWMutex
 
 	TLSChallengeProvider  challenge.Provider
 	HTTPChallengeProvider challenge.Provider
@@ -126,6 +130,7 @@ func (p *Provider) SetConfigListenerChan(configFromListenerChan chan dynamic.Con
 
 // ListenConfiguration sets a new Configuration into the configFromListenerChan.
 func (p *Provider) ListenConfiguration(config dynamic.Configuration) {
+	log.WithoutContext().Println("new configuration received in ACME provider")
 	p.configFromListenerChan <- config
 }
 
@@ -142,6 +147,8 @@ func (p *Provider) Init() error {
 		return errors.New("cannot manage certificates with duration lower than 1 hour")
 	}
 
+	p.storeMu.Lock()
+	defer p.storeMu.Unlock()
 	var err error
 	p.account, err = p.Store.GetAccount(p.ResolverName)
 	if err != nil {
@@ -216,36 +223,87 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 
 	p.renewCertificates(ctx, renewPeriod)
 
+	p.storeMu.Lock()
+	defer p.storeMu.Unlock()
 	switch v := p.Store.(type) {
 	case *ValkeyrieStore:
-		certificatesChangedChannel, err := v.WatchCertificateChanges(p.ResolverName)
-
-		if err != nil {
-			log.FromContext(ctx).Errorln("Couldn't watch certificates in store: " + err.Error())
-			break
-		}
-
+		watchChannelDied := make(chan struct{}, 1)
 		pool.GoCtx(func(ctxPool context.Context) {
+			watchChannelDied <- struct{}{}
+			ctxDoneChannel := make(chan struct{})
+
 			for {
 				select {
 				case <-ctxPool.Done():
+					ctxDoneChannel <- struct{}{}
 					return
-				case <-certificatesChangedChannel:
-					p.certificatesMu.Lock()
-					var err error
-					p.certificates, err = v.GetCertificates(p.ResolverName)
-					msg := p.buildMessage()
-					log.FromContext(ctx).Infoln("Refreshing local certificates because certificates have been changed in the key-value store. New certificate count: " + fmt.Sprint(len(p.certificates)))
-					p.certificatesMu.Unlock()
+				case _, watchChannelDiedOk := <-watchChannelDied:
+					if !watchChannelDiedOk {
+						return
+					}
+
+					var certificatesChangedChannel <-chan *store.KVPair
+
+					operation := func() error {
+						p.storeMu.Lock()
+						var err error
+						certificatesChangedChannel, err = v.WatchCertificateChanges(p.ResolverName)
+						p.storeMu.Unlock()
+						return err
+					}
+
+					notify := func(err error, time time.Duration) {
+						log.FromContext(ctx).Errorln("Couldn't watch certificates in store: " + err.Error())
+					}
+
+					ebo := backoff.NewExponentialBackOff()
+					ebo.InitialInterval = 5 * time.Second
+					ebo.MaxInterval = 60 * time.Second
+					ebo.MaxElapsedTime = 0 * time.Second
+					err := backoff.RetryNotify(safe.OperationWithRecover(operation), ebo, notify)
 					if err != nil {
-						log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
+						logger.Errorf("Cannot watch certificates in store: %v", err)
+						watchChannelDied <- struct{}{}
 						continue
 					}
-					p.configurationChan <- msg
+
+					safe.Go(func() {
+						for {
+							select {
+							case <-ctxDoneChannel:
+								return
+							case pair, ok := <-certificatesChangedChannel:
+								if !ok {
+									watchChannelDied <- struct{}{}
+									return
+								}
+								if pair == nil {
+									continue
+								}
+
+								p.storeMu.Lock()
+								p.certificatesMu.Lock()
+								var err error
+								// TODO: When redis goes down, the HTTP challenge main instances goes down too while it still holds the lock
+								// and the redis instance comes back alive again while the HTTP challenge main instance is still locked,
+								// new certificates are not created -> You need another config even (which is different from the current one)
+								// or a certification renewal. Implement that somehow
+								p.certificates, err = v.GetCertificates(p.ResolverName)
+								msg := p.buildMessage()
+								log.FromContext(ctx).Infoln("Refreshing local certificates because certificates have been changed in the key-value store. New certificate count: " + fmt.Sprint(len(p.certificates)))
+								p.certificatesMu.Unlock()
+								p.storeMu.Unlock()
+								if err != nil {
+									log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
+									continue
+								}
+								p.configurationChan <- msg
+							}
+						}
+					})
 				}
 			}
 		})
-
 	}
 
 	ticker := time.NewTicker(renewInterval)
@@ -310,7 +368,9 @@ func (p *Provider) getClient() (*lego.Client, error) {
 
 	// Save the account once before all the certificates generation/storing
 	// No certificate can be generated if account is not initialized
+	p.storeMu.Lock()
 	err = p.Store.SaveAccount(p.ResolverName, account)
+	p.storeMu.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -717,6 +777,8 @@ func (p *Provider) addCertificateForDomain(domain types.Domain, crt *certificate
 
 	p.configurationChan <- p.buildMessage()
 
+	p.storeMu.Lock()
+	defer p.storeMu.Unlock()
 	return p.Store.SaveCertificates(p.ResolverName, p.certificates)
 }
 
