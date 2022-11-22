@@ -82,8 +82,8 @@ func init() {
 						Scheme:          "foo",
 						Path:            "foo",
 						Port:            42,
-						Interval:        "foo",
-						Timeout:         "foo",
+						Interval:        ptypes.Duration(111 * time.Second),
+						Timeout:         ptypes.Duration(111 * time.Second),
 						Hostname:        "foo",
 						FollowRedirects: boolPtr(true),
 						Headers: map[string]string{
@@ -92,7 +92,7 @@ func init() {
 					},
 					PassHostHeader: boolPtr(true),
 					ResponseForwarding: &dynamic.ResponseForwarding{
-						FlushInterval: "foo",
+						FlushInterval: ptypes.Duration(111 * time.Second),
 					},
 					ServersTransport: "foo",
 					Servers: []dynamic.Server{
@@ -845,9 +845,13 @@ func TestDo_staticConfiguration(t *testing.T) {
 	}
 
 	config.Log = &types.TraefikLog{
-		Level:    "Level",
-		FilePath: "/foo/path",
-		Format:   "json",
+		Level:      "Level",
+		Format:     "json",
+		FilePath:   "/foo/path",
+		MaxSize:    5,
+		MaxAge:     3,
+		MaxBackups: 4,
+		Compress:   true,
 	}
 
 	config.AccessLog = &types.AccessLog{
