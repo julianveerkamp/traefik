@@ -12,7 +12,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
-	"github.com/traefik/traefik/v2/pkg/log"
+	"github.com/rs/zerolog/log"
+	"github.com/traefik/traefik/v2/pkg/logs"
 	"github.com/traefik/traefik/v2/pkg/safe"
 )
 
@@ -26,12 +27,12 @@ type ValkeyrieChallengeHTTP struct {
 
 // NewChallengeHTTP creates a new ChallengeHTTP.
 func NewValkeyrieChallengeHTTP(addr string, storeName string, config valkeyrie.Config) *ValkeyrieChallengeHTTP {
-	logger := log.WithoutContext().WithField(log.ProviderName, "acme")
+	logger := log.With().Str(logs.ProviderName, "acme").Logger()
 
 	ctx := context.Background()
 	kv, err := valkeyrie.NewStore(ctx, storeName, []string{addr}, config)
 	if err != nil {
-		logger.Error(err)
+		logger.Error().Err(err).Msg("Unable to create ValkeyrieChallengeHTTP")
 	}
 
 	return &ValkeyrieChallengeHTTP{
@@ -73,6 +74,7 @@ func (c *ValkeyrieChallengeHTTP) Present(domain, token, keyAuth string) error {
 // expired
 // returns false if another instance is the main
 func (c *ValkeyrieChallengeHTTP) isChallengeMain() (bool, error) {
+	logger := log.With().Str(logs.ProviderName, "acme").Logger()
 	// Get lock for main
 	mainKey := "http_challenge_main"
 	mainLockKey := "http_challenge_main_lock"
@@ -80,7 +82,7 @@ func (c *ValkeyrieChallengeHTTP) isChallengeMain() (bool, error) {
 	locker, _ := c.kv.NewLock(c.ctx, mainLockKey, nil)
 	_, err := locker.Lock(c.ctx)
 	if err != nil {
-		log.WithoutContext().Infoln("Lock error: " + err.Error())
+		logger.Error().Err(err).Msg("Unable to Lock: " + mainLockKey)
 		return false, err
 	}
 	defer locker.Unlock(c.ctx)
@@ -157,12 +159,11 @@ func (c *ValkeyrieChallengeHTTP) Timeout() (timeout, interval time.Duration) {
 }
 
 func (c *ValkeyrieChallengeHTTP) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	ctx := log.With(req.Context(), log.Str(log.ProviderName, "acme"))
-	logger := log.FromContext(ctx)
+	logger := log.Ctx(req.Context()).With().Str(logs.ProviderName, "acme").Logger()
 
 	token, err := getPathParam(req.URL)
 	if err != nil {
-		logger.Errorf("Unable to get token: %v.", err)
+		logger.Error().Err(err).Msg("Unable to get token")
 		rw.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -170,16 +171,16 @@ func (c *ValkeyrieChallengeHTTP) ServeHTTP(rw http.ResponseWriter, req *http.Req
 	if token != "" {
 		domain, _, err := net.SplitHostPort(req.Host)
 		if err != nil {
-			logger.Debugf("Unable to split host and port: %v. Fallback to request host.", err)
+			logger.Debug().Err(err).Msg("Unable to split host and port. Fallback to request host.")
 			domain = req.Host
 		}
 
-		tokenValue := c.getTokenValue(ctx, token, domain)
+		tokenValue := c.getTokenValue(logger.WithContext(req.Context()), token, domain)
 		if len(tokenValue) > 0 {
 			rw.WriteHeader(http.StatusOK)
 			_, err = rw.Write(tokenValue)
 			if err != nil {
-				logger.Errorf("Unable to write token: %v", err)
+				logger.Error().Err(err).Msg("Unable to write token")
 			}
 			return
 		}
@@ -189,8 +190,8 @@ func (c *ValkeyrieChallengeHTTP) ServeHTTP(rw http.ResponseWriter, req *http.Req
 }
 
 func (c *ValkeyrieChallengeHTTP) getTokenValue(ctx context.Context, token, domain string) []byte {
-	logger := log.FromContext(ctx)
-	logger.Debugf("Retrieving the ACME challenge for %s (token %q)...", domain, token)
+	logger := log.Ctx(ctx)
+	logger.Debug().Msgf("Retrieving the ACME challenge for %s (token %q)...", domain, token)
 
 	var result []byte
 
@@ -221,14 +222,14 @@ func (c *ValkeyrieChallengeHTTP) getTokenValue(ctx context.Context, token, domai
 	}
 
 	notify := func(err error, time time.Duration) {
-		logger.Errorf("Error getting challenge for token retrying in %s", time)
+		logger.Error().Msgf("Error getting challenge for token retrying in %s", time)
 	}
 
 	ebo := backoff.NewExponentialBackOff()
 	ebo.MaxElapsedTime = 60 * time.Second
 	err := backoff.RetryNotify(safe.OperationWithRecover(operation), ebo, notify)
 	if err != nil {
-		logger.Errorf("Cannot retrieve the ACME challenge for %s (token %q): %v", domain, token, err)
+		logger.Error().Err(err).Msgf("Cannot retrieve the ACME challenge for %s (token %q)", domain, token)
 		return []byte{}
 	}
 

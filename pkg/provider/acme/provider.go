@@ -130,7 +130,6 @@ func (p *Provider) SetConfigListenerChan(configFromListenerChan chan dynamic.Con
 
 // ListenConfiguration sets a new Configuration into the configFromListenerChan.
 func (p *Provider) ListenConfiguration(config dynamic.Configuration) {
-	log.WithoutContext().Println("new configuration received in ACME provider")
 	p.configFromListenerChan <- config
 }
 
@@ -252,7 +251,7 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 					}
 
 					notify := func(err error, time time.Duration) {
-						log.FromContext(ctx).Errorln("Couldn't watch certificates in store: " + err.Error())
+						log.Ctx(ctx).Error().Err(err).Msg("Couldn't watch certificates in store")
 					}
 
 					ebo := backoff.NewExponentialBackOff()
@@ -261,7 +260,7 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 					ebo.MaxElapsedTime = 0 * time.Second
 					err := backoff.RetryNotify(safe.OperationWithRecover(operation), ebo, notify)
 					if err != nil {
-						logger.Errorf("Cannot watch certificates in store: %v", err)
+						logger.Error().Err(err).Msg("Cannot watch certificates in store")
 						watchChannelDied <- struct{}{}
 						continue
 					}
@@ -289,11 +288,11 @@ func (p *Provider) Provide(configurationChan chan<- dynamic.Message, pool *safe.
 								// or a certification renewal. Implement that somehow
 								p.certificates, err = v.GetCertificates(p.ResolverName)
 								msg := p.buildMessage()
-								log.FromContext(ctx).Infoln("Refreshing local certificates because certificates have been changed in the key-value store. New certificate count: " + fmt.Sprint(len(p.certificates)))
+								log.Ctx(ctx).Info().Msg("Refreshing local certificates because certificates have been changed in the key-value store. New certificate count: " + fmt.Sprint(len(p.certificates)))
 								p.certificatesMu.Unlock()
 								p.storeMu.Unlock()
 								if err != nil {
-									log.FromContext(ctx).Errorln("Couldn't reload certificates from the store after a watch event occured: " + err.Error())
+									log.Ctx(ctx).Error().Err(err).Msg("Couldn't reload certificates from the store after a watch event occured")
 									continue
 								}
 								p.configurationChan <- msg

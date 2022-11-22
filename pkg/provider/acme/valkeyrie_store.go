@@ -6,7 +6,8 @@ import (
 
 	"github.com/kvtools/valkeyrie"
 	"github.com/kvtools/valkeyrie/store"
-	"github.com/traefik/traefik/v2/pkg/log"
+	"github.com/rs/zerolog/log"
+	"github.com/traefik/traefik/v2/pkg/logs"
 )
 
 var _ Store = (*ValkeyrieStore)(nil)
@@ -19,11 +20,11 @@ type ValkeyrieStore struct {
 
 // NewValkeyrieStore initializes a new ValkeyrieStore with an URL.
 func NewValkeyrieStore(addr string, storeName string, config valkeyrie.Config) *ValkeyrieStore {
-	logger := log.WithoutContext().WithField(log.ProviderName, "acme")
+	logger := log.With().Str(logs.ProviderName, "acme").Logger()
 	ctx := context.Background()
 	kv, err := valkeyrie.NewStore(ctx, storeName, []string{addr}, config)
 	if err != nil {
-		logger.Error(err)
+		logger.Error().Err(err).Msg("Unable to create ValkeyrieStore")
 	}
 	s := &ValkeyrieStore{ctx: ctx, kv: kv}
 
