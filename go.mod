@@ -8,8 +8,8 @@ require (
 	github.com/Masterminds/sprig/v3 v3.2.2
 	github.com/abbot/go-http-auth v0.0.0-00010101000000-000000000000
 	github.com/alicebob/miniredis/v2 v2.23.0
-	github.com/aws/aws-sdk-go v1.44.91
 	github.com/andybalholm/brotli v1.0.4
+	github.com/aws/aws-sdk-go v1.44.91
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/compose-spec/compose-go v1.0.3
 	github.com/containous/alice v0.0.0-20181107144136-d83ebdd94cbd
@@ -41,7 +41,6 @@ require (
 	github.com/julianveerkamp/redis v0.1.2
 	github.com/klauspost/compress v1.15.0
 	github.com/kvtools/consul v1.0.2
-	github.com/kvtools/dynamodb v1.0.2
 	github.com/kvtools/etcdv3 v1.0.2
 	github.com/kvtools/valkeyrie v1.0.0
 	github.com/kvtools/zookeeper v1.0.2
@@ -63,6 +62,7 @@ require (
 	github.com/rancher/go-rancher-metadata v0.0.0-20200311180630-7f4c936a06ac
 	github.com/rs/zerolog v1.28.0
 	github.com/sirupsen/logrus v1.9.0
+	github.com/spetzold/kvtools-dynamodb v0.1.7
 	github.com/spiffe/go-spiffe/v2 v2.1.1
 	github.com/stretchr/testify v1.8.1
 	github.com/stvp/go-udp-testing v0.0.0-20191102171040-06b61409b154

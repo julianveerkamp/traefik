@@ -17,11 +17,11 @@ import (
 	"github.com/coreos/go-systemd/daemon"
 	"github.com/go-acme/lego/v4/challenge"
 	gokitmetrics "github.com/go-kit/kit/metrics"
-	"github.com/rs/zerolog/log"
 	"github.com/julianveerkamp/redis"
-	"github.com/kvtools/dynamodb"
 	"github.com/kvtools/valkeyrie"
+	"github.com/rs/zerolog/log"
 	"github.com/sirupsen/logrus"
+	dynamodb "github.com/spetzold/kvtools-dynamodb"
 	"github.com/spiffe/go-spiffe/v2/workloadapi"
 	"github.com/traefik/paerser/cli"
 	"github.com/traefik/traefik/v2/cmd"
@@ -395,8 +395,10 @@ func getStorageDetails(storage string) (string, string, valkeyrie.Config) {
 		_, storageInfo, _ := strings.Cut(storage, "dynamo://")
 		awsRegion, bucketName, _ := strings.Cut(storageInfo, ":")
 		storageAddr := "dynamodb." + awsRegion + ".amazonaws.com"
-		os.Setenv("AWS_REGION", awsRegion)
-		config := &dynamodb.Config{Bucket: bucketName}
+		config := &dynamodb.Config{
+			Bucket: bucketName,
+			Region: &awsRegion,
+		}
 		return storageAddr, dynamodb.StoreName, config
 	default:
 		return storage, "", nil
