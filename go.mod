@@ -62,7 +62,7 @@ require (
 	github.com/rancher/go-rancher-metadata v0.0.0-20200311180630-7f4c936a06ac
 	github.com/rs/zerolog v1.28.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/spetzold/kvtools-dynamodb v0.1.7
+	github.com/spetzold/kvtools-dynamodb v0.1.8
 	github.com/spiffe/go-spiffe/v2 v2.1.1
 	github.com/stretchr/testify v1.8.1
 	github.com/stvp/go-udp-testing v0.0.0-20191102171040-06b61409b154

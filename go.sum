@@ -1742,8 +1742,8 @@ github.com/sony/gobreaker v0.4.1/go.mod h1:ZKptC7FHNvhBz7dN2LGjPVBz2sZJmc0/PkyDJ
 github.com/sourcegraph/annotate v0.0.0-20160123013949-f4cad6c6324d/go.mod h1:UdhH50NIW0fCiwBSr0co2m7BnFLdv4fQTgdqdJTHFeE=
 github.com/sourcegraph/syntaxhighlight v0.0.0-20170531221838-bd320f5d308e/go.mod h1:HuIsMU8RRBOtsCgI77wP899iHVBQpCmg4ErYMZB+2IA=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
-github.com/spetzold/kvtools-dynamodb v0.1.7 h1:hgt2/3juaQnZa5P67pwEkub/jwOOb6f2ijts7NHXwo4=
-github.com/spetzold/kvtools-dynamodb v0.1.7/go.mod h1:33pyZPEU1Th/3/Sz2OXWvcGZwD25+vXETRh+TO+Mcec=
+github.com/spetzold/kvtools-dynamodb v0.1.8 h1:9CBR3/smOdLP6L6qdQkSUGRv36/ACcLBs/n1c+81dbs=
+github.com/spetzold/kvtools-dynamodb v0.1.8/go.mod h1:33pyZPEU1Th/3/Sz2OXWvcGZwD25+vXETRh+TO+Mcec=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
 github.com/spf13/afero v1.2.1/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=
 github.com/spf13/afero v1.2.2/go.mod h1:9ZxEEn6pIJ8Rxe320qSDBk6AsU0r9pR7Q4OcevTdifk=

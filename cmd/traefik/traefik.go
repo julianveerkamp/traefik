@@ -479,9 +479,11 @@ func initACMEProvider(c *static.Configuration, providerAggregator *aggregator.Pr
 		if localStores[resolver.ACME.Storage] == nil {
 			switch storageAddr, storageName, storageConfig := getStorageDetails(resolver.ACME.Storage); storageName {
 			case redis.StoreName:
-				fallthrough
-			case dynamodb.StoreName:
 				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageAddr, storageName, storageConfig)
+			case dynamodb.StoreName:
+				dynamoDbConfig := storageConfig.(*dynamodb.Config)
+				dynamoDbConfig.WssServerAddress = &resolver.ACME.StorageWssServerAddress
+				localStores[resolver.ACME.Storage] = acme.NewValkeyrieStore(storageAddr, storageName, dynamoDbConfig)
 			default:
 				localStores[resolver.ACME.Storage] = acme.NewLocalStore(resolver.ACME.Storage)
 			}
